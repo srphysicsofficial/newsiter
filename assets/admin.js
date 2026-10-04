@@ -14,7 +14,7 @@
   return items.filter(r=>(!filter||r.status===filter)&&(!q||(JSON.stringify(r)+(active==='paper_feedback'?paperName(r.paper_id):'')).toLowerCase().includes(q)));}
  function parse(value){try{const array=JSON.parse(value||'[]');return Array.isArray(array)?array:[];}catch{return [];}}
  async function load(){if(loading)return;loading=true;$('adminRefresh').disabled=true;message('Loading console…');
-  try{const types=Object.keys(sections);const all=await Promise.all(types.map(t=>api('/api/admin/data/'+t)));store=Object.fromEntries(types.map((t,i)=>[t,all[i].items]));
+  try{const snapshot=await api('/api/admin/snapshot');store=snapshot.items;
     const old=$('adminPaperFilter').value;
     $('adminPaperFilter').innerHTML=store.papers.map(p=>`<option value="${p.id}">${escape(p.name)} (#${p.id})${p.status==='archived'?' — archived':''}</option>`).join('');
     if(!paperFilterInitialized){$('adminPaperFilter').value=String(store.papers[0]?.id||'');paperFilterInitialized=true;}else if(store.papers.some(p=>String(p.id)===old))$('adminPaperFilter').value=old;
