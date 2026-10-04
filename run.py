@@ -19,7 +19,15 @@ def ensure_ready():
     if not _ready:
         with _ready_lock:
             if not _ready:
-                p6.init_db()
+                # Existing tables need no repeated DDL locks on cold starts.
+                with db.connect() as conn:
+                    names = list(p6.TYPE_TABLE.values())
+                    schema = os.environ.get('SR_DB_SCHEMA', 'sr_physics_local')
+                    present = conn.execute(
+                        'SELECT count(*) FROM information_schema.tables WHERE table_schema=%s AND table_name=ANY(%s)',
+                        (schema, names)).fetchone()[0]
+                if present != len(names):
+                    p6.init_db()
                 _ready = True
 
 @app.before_request
@@ -168,7 +176,11 @@ def cleanup_papers():
 def maintain_current_paper():
     if request.path.startswith('/api/') and request.path != '/api/internal/cleanup':
         ensure_ready()
-        cleanup_papers()
+        paper_paths = ('/api/papers', '/api/paper/', '/api/paper-feedback',
+                       '/api/admin/papers', '/api/admin/paper-feedback',
+                       '/api/admin/data/papers', '/api/admin/data/paper_feedback')
+        if request.path == '/api/admin/snapshot' or request.path.startswith(paper_paths):
+            cleanup_papers()
 
 @app.after_request
 def fresh_api(response):
